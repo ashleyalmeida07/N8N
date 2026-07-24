@@ -1,0 +1,15 @@
+services:
+  - type: worker          # background worker (no open port needed)
+    name: telegram-meme-bridge
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free            # change to 'starter' or higher for production
+    envVars:
+      - key: API_ID
+        sync: false       # set manually in Render dashboard
+      - key: API_HASH
+        sync: false
+      - key: N8N_WEBHOOK_URL
+        sync: false
+      - key: N8N_WEBHOOK_SECRET
+        sync: false

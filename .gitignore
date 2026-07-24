@@ -1,0 +1,42 @@
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Virtual environments ─────────────────────────────────────
+myenv/
+venv/
+.venv/
+env/
+.env
+
+# ── Secrets & session files ──────────────────────────────────
+*.session
+*.session-journal
+.env
+.env.*
+
+# ── Logs & downloads ─────────────────────────────────────────
+*.log
+downloads/
+
+# ── Docker (excluded from commits, used locally only) ────────
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# ── OS junk ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
