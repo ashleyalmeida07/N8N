@@ -26,9 +26,8 @@ env/
 *.log
 downloads/
 
-# ── Docker (excluded from commits, used locally only) ────────
+# ── Docker (local n8n compose excluded; Dockerfile kept for Render) ──
 docker-compose.yml
-Dockerfile
 .dockerignore
 
 # ── OS junk ─────────────────────────────────────────────────
