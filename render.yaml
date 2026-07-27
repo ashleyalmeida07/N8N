@@ -1,15 +1,21 @@
 services:
-  - type: worker          # background worker (no open port needed)
-    name: telegram-meme-bridge
+  - type: web
+    name: n8n-meme-bot
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free            # change to 'starter' or higher for production
+    plan: free
     envVars:
-      - key: API_ID
-        sync: false       # set manually in Render dashboard
-      - key: API_HASH
-        sync: false
-      - key: N8N_WEBHOOK_URL
-        sync: false
-      - key: N8N_WEBHOOK_SECRET
-        sync: false
+      - key: N8N_HOST
+        value: 0.0.0.0
+      - key: N8N_PORT
+        value: 5678
+      - key: N8N_PROTOCOL
+        value: https
+      - key: GENERIC_TIMEZONE
+        value: Asia/Kolkata
+      - key: N8N_SECURE_COOKIE
+        value: false
+    disk:
+      name: n8n-data
+      mountPath: /home/node/.n8n
+      sizeGB: 1

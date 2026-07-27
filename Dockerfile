@@ -1,10 +1,13 @@
-FROM python:3.11-slim
+FROM docker.n8n.io/n8nio/n8n
 
-WORKDIR /app
+# Set environment variables
+ENV N8N_HOST=0.0.0.0
+ENV N8N_PORT=5678
+ENV N8N_PROTOCOL=https
+ENV GENERIC_TIMEZONE=Asia/Kolkata
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Expose port
+EXPOSE 5678
 
-COPY a.py .
-
-CMD ["python", "a.py"]
+# Start n8n
+CMD ["n8n", "start"]
