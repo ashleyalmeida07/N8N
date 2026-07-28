@@ -8,27 +8,21 @@
         "responseMode": "onReceived",
         "options": {}
       },
-      "id": "f2a2b2c2-2222-4000-8000-000000000001",
+      "id": "node-webhook",
       "name": "Telegram Callback",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        220,
-        300
-      ]
+      "position": [220, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Parse Telegram callback query\nvar body = $input.first().json;\nvar callback = body.callback_query;\n\n// Exit if not a valid callback\nif (!callback || !callback.data) return [];\n\nvar action = callback.data;\nvar callbackId = callback.id;\nvar chatId = String(callback.message.chat.id);\nvar msgText = callback.message.caption || '';\n\n// --- Parse caption from Telegram message ---\nvar caption = '';\nvar ci = msgText.indexOf('Caption:');\nif (ci !== -1) {\n  var afterCaption = msgText.substring(ci + 8);\n  var tagIdx = afterCaption.indexOf('🏷️');\n  if (tagIdx !== -1) {\n    caption = afterCaption.substring(0, tagIdx).trim();\n  } else {\n    caption = afterCaption.split('\\n\\n')[0].trim();\n  }\n}\n\n// --- Parse hashtags ---\nvar hashtags = '';\nvar tagParts = msgText.split('🏷️');\nif (tagParts.length > 1) {\n  var hPart = tagParts[1];\n  var scoreIdx = hPart.indexOf('📊');\n  if (scoreIdx !== -1) {\n    hashtags = hPart.substring(0, scoreIdx).trim();\n  } else {\n    hashtags = hPart.split('\\n\\n')[0].trim();\n  }\n}\n\n// --- Parse image URL ---\nvar imageUrl = '';\nvar urlParts = msgText.split('📎');\nif (urlParts.length > 1) {\n  imageUrl = urlParts[1].trim();\n}\n\n// Build Instagram caption\nvar instagramCaption = (caption && hashtags) ? caption + '\\n\\n' + hashtags : 'Check out this meme! 😂 #memes #funny #viral';\n\n// Build answer callback body\nvar answerBody = JSON.stringify({\n  callback_query_id: callbackId,\n  text: action === 'approve' ? '📤 Posting to Instagram...' : '⏭️ Skipped!'\n});\n\nreturn [{\n  json: {\n    action: action,\n    callbackId: callbackId,\n    chatId: chatId,\n    imageUrl: imageUrl,\n    instagramCaption: instagramCaption,\n    answerBody: answerBody\n  }\n}];"
+        "jsCode": "// Parse Telegram callback query\nvar raw = $input.first().json;\nvar body = raw.body || raw;\nvar callback = body.callback_query;\n\nif (!callback || !callback.data) return [];\n\nvar action = callback.data;\nvar callbackId = callback.id;\nvar chatId = String(callback.message.chat.id);\nvar msgText = callback.message.caption || '';\n\n// Parse media URL from 📎\nvar mediaUrl = '';\nvar urlParts = msgText.split('📎');\nif (urlParts.length > 1) {\n  mediaUrl = urlParts[1].trim();\n}\n\n// Parse title from 📌\nvar title = '';\nvar titleParts = msgText.split('📌');\nif (titleParts.length > 1) {\n  title = titleParts[1].split('\\n')[0].trim();\n}\n\n// Detect media type from 🎬\nvar mediaType = 'image';\nif (msgText.includes('🎬 video')) {\n  mediaType = 'video';\n}\n\n// Generate Instagram caption (no location in text)\nvar instagramCaption = title + ' 😂🔥\\n\\n#memes #funny #viral #trending #lol #memesdaily #humor #comedy #instamemes #relatable';\n\nvar answerText = action === 'approve' ? '📤 Posting to Instagram...' : '📝 Saving as draft...';\nvar answerBody = JSON.stringify({\n  callback_query_id: callbackId,\n  text: answerText\n});\n\nreturn [{\n  json: {\n    action: action,\n    callbackId: callbackId,\n    chatId: chatId,\n    mediaUrl: mediaUrl,\n    mediaType: mediaType,\n    title: title,\n    instagramCaption: instagramCaption,\n    answerBody: answerBody\n  }\n}];"
       },
-      "id": "f2a2b2c2-2222-4000-8000-000000000002",
+      "id": "node-parse",
       "name": "Parse Callback",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        460,
-        300
-      ]
+      "position": [460, 300]
     },
     {
       "parameters": {
@@ -49,14 +43,11 @@
         "body": "={{ $('Parse Callback').first().json.answerBody }}",
         "options": {}
       },
-      "id": "f2a2b2c2-2222-4000-8000-000000000003",
+      "id": "node-answer",
       "name": "Answer Callback",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
@@ -69,14 +60,28 @@
           ]
         }
       },
-      "id": "f2a2b2c2-2222-4000-8000-000000000004",
+      "id": "node-approved",
       "name": "Is Approved?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        940,
-        300
-      ]
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Parse Callback').first().json.mediaType }}",
+              "value2": "video"
+            }
+          ]
+        }
+      },
+      "id": "node-isvideo",
+      "name": "Is Video?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1180, 180]
     },
     {
       "parameters": {
@@ -87,11 +92,15 @@
           "parameters": [
             {
               "name": "image_url",
-              "value": "={{ $('Parse Callback').first().json.imageUrl }}"
+              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
             },
             {
               "name": "caption",
               "value": "={{ $('Parse Callback').first().json.instagramCaption }}"
+            },
+            {
+              "name": "location_id",
+              "value": "108424279189115"
             },
             {
               "name": "access_token",
@@ -101,14 +110,22 @@
         },
         "options": {}
       },
-      "id": "f2a2b2c2-2222-4000-8000-000000000005",
-      "name": "Instagram Create Container",
+      "id": "node-img-container",
+      "name": "Image Create Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1200,
-        180
-      ]
+      "position": [1460, 60]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "node-img-wait",
+      "name": "Wait for Image",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1660, 60]
     },
     {
       "parameters": {
@@ -129,14 +146,149 @@
         },
         "options": {}
       },
-      "id": "f2a2b2c2-2222-4000-8000-000000000006",
-      "name": "Instagram Publish",
+      "id": "node-img-publish",
+      "name": "Image Publish",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1460,
-        180
-      ]
+      "position": [1860, 60]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image_url",
+              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
+            },
+            {
+              "name": "media_type",
+              "value": "STORIES"
+            },
+            {
+              "name": "access_token",
+              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-story-container",
+      "name": "Story Create Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2060, 60]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "node-story-wait",
+      "name": "Wait for Story",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2260, 60]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/17841478302119188/media_publish",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-story-publish",
+      "name": "Story Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2460, 60]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "media_type",
+              "value": "VIDEO"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $('Parse Callback').first().json.instagramCaption }}"
+            },
+            {
+              "name": "location_id",
+              "value": "108424279189115"
+            },
+            {
+              "name": "access_token",
+              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-vid-container",
+      "name": "Video Create Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, 300]
+    },
+    {
+      "parameters": {
+        "amount": 45,
+        "unit": "seconds"
+      },
+      "id": "node-vid-wait",
+      "name": "Wait for Video",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/17841478302119188/media_publish",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-vid-publish",
+      "name": "Video Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1860, 300]
     },
     {
       "parameters": {
@@ -151,20 +303,104 @@
             },
             {
               "name": "text",
-              "value": "✅ Meme posted to Instagram successfully! 🎉🔥"
+              "value": "✅ Meme posted to Instagram (Post + Story) with 📍 India! 🎉🔥"
             }
           ]
         },
         "options": {}
       },
-      "id": "f2a2b2c2-2222-4000-8000-000000000007",
+      "id": "node-confirm",
       "name": "Confirm Posted",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1720,
-        180
-      ]
+      "position": [2660, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Parse Callback').first().json.mediaType }}",
+              "value2": "video"
+            }
+          ]
+        }
+      },
+      "id": "node-isdraftvideo",
+      "name": "Is Draft Video?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1180, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image_url",
+              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $('Parse Callback').first().json.instagramCaption }}"
+            },
+            {
+              "name": "location_id",
+              "value": "108424279189115"
+            },
+            {
+              "name": "access_token",
+              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-draft-img",
+      "name": "Draft Image Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, 580]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "media_type",
+              "value": "VIDEO"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $('Parse Callback').first().json.instagramCaption }}"
+            },
+            {
+              "name": "location_id",
+              "value": "108424279189115"
+            },
+            {
+              "name": "access_token",
+              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-draft-vid",
+      "name": "Draft Video Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, 420]
     },
     {
       "parameters": {
@@ -179,127 +415,79 @@
             },
             {
               "name": "text",
-              "value": "⏭️ Meme skipped! Next one coming in the next cycle."
+              "value": "📝 Meme saved as draft on Instagram! (Caption + 📍 India location set. Container expires in 24h)"
             }
           ]
         },
         "options": {}
       },
-      "id": "f2a2b2c2-2222-4000-8000-000000000008",
-      "name": "Confirm Skipped",
+      "id": "node-confirm-draft",
+      "name": "Confirm Draft",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1200,
-        460
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## ⚙️ CONFIGURATION NEEDED\n\nReplace these placeholders:\n\n1. **YOUR_TELEGRAM_BOT_TOKEN** → Same token as Workflow 1\n2. **YOUR_IG_USER_ID** → Instagram Business account User ID\n3. **YOUR_INSTAGRAM_ACCESS_TOKEN** → From Meta Developer Console\n\n---\n\n### ⚠️ IMPORTANT: Set up Telegram Webhook\n\nAfter activating this workflow, copy the **Production Webhook URL** and call:\n```\nhttps://api.telegram.org/botYOUR_TOKEN/setWebhook?url=WEBHOOK_URL\n```\n\n**For local setup:** Use ngrok → `ngrok http 5678`\nThen use the ngrok URL as your webhook base.",
-        "height": 400,
-        "width": 480,
-        "color": 4
-      },
-      "id": "f2a2b2c2-2222-4000-8000-000000000009",
-      "name": "Sticky Note",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        220,
-        -80
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## 📋 How This Workflow Works\n\n1. 📲 Receives Telegram button callback (Approve/Skip)\n2. 🔍 Parses meme data from original message\n3. ✅ Acknowledges the button press\n4. 🔀 Routes: Approved → Instagram | Skipped → Notify\n5. 📤 Posts to Instagram via Graph API (if approved)\n6. 💬 Sends confirmation back to Telegram\n\n**Instagram posting is a 2-step process:**\n1. Create media container (upload image + caption)\n2. Publish the container",
-        "height": 320,
-        "width": 460,
-        "color": 6
-      },
-      "id": "f2a2b2c2-2222-4000-8000-000000000010",
-      "name": "Sticky Note1",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        760,
-        -80
-      ]
+      "position": [1860, 500]
     }
   ],
   "connections": {
     "Telegram Callback": {
-      "main": [
-        [
-          {
-            "node": "Parse Callback",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Parse Callback", "type": "main", "index": 0 }]]
     },
     "Parse Callback": {
-      "main": [
-        [
-          {
-            "node": "Answer Callback",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Answer Callback", "type": "main", "index": 0 }]]
     },
     "Answer Callback": {
-      "main": [
-        [
-          {
-            "node": "Is Approved?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Is Approved?", "type": "main", "index": 0 }]]
     },
     "Is Approved?": {
       "main": [
-        [
-          {
-            "node": "Instagram Create Container",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Confirm Skipped",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Is Video?", "type": "main", "index": 0 }],
+        [{ "node": "Is Draft Video?", "type": "main", "index": 0 }]
       ]
     },
-    "Instagram Create Container": {
+    "Is Video?": {
       "main": [
-        [
-          {
-            "node": "Instagram Publish",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Video Create Container", "type": "main", "index": 0 }],
+        [{ "node": "Image Create Container", "type": "main", "index": 0 }]
       ]
     },
-    "Instagram Publish": {
+    "Image Create Container": {
+      "main": [[{ "node": "Wait for Image", "type": "main", "index": 0 }]]
+    },
+    "Wait for Image": {
+      "main": [[{ "node": "Image Publish", "type": "main", "index": 0 }]]
+    },
+    "Image Publish": {
+      "main": [[{ "node": "Story Create Container", "type": "main", "index": 0 }]]
+    },
+    "Story Create Container": {
+      "main": [[{ "node": "Wait for Story", "type": "main", "index": 0 }]]
+    },
+    "Wait for Story": {
+      "main": [[{ "node": "Story Publish", "type": "main", "index": 0 }]]
+    },
+    "Story Publish": {
+      "main": [[{ "node": "Confirm Posted", "type": "main", "index": 0 }]]
+    },
+    "Video Create Container": {
+      "main": [[{ "node": "Wait for Video", "type": "main", "index": 0 }]]
+    },
+    "Wait for Video": {
+      "main": [[{ "node": "Video Publish", "type": "main", "index": 0 }]]
+    },
+    "Video Publish": {
+      "main": [[{ "node": "Confirm Posted", "type": "main", "index": 0 }]]
+    },
+    "Is Draft Video?": {
       "main": [
-        [
-          {
-            "node": "Confirm Posted",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Draft Video Container", "type": "main", "index": 0 }],
+        [{ "node": "Draft Image Container", "type": "main", "index": 0 }]
       ]
+    },
+    "Draft Video Container": {
+      "main": [[{ "node": "Confirm Draft", "type": "main", "index": 0 }]]
+    },
+    "Draft Image Container": {
+      "main": [[{ "node": "Confirm Draft", "type": "main", "index": 0 }]]
     }
   },
   "settings": {
@@ -307,6 +495,6 @@
   },
   "staticData": null,
   "tags": [],
-  "triggerCount": 1,
+  "triggerCount": 0,
   "active": false
 }

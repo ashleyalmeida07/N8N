@@ -39,3 +39,6 @@ desktop.ini
 .vscode/
 .idea/
 *.swp
+
+# ── n8n workflows (contain API credentials) ──────────────────
+workflows/
