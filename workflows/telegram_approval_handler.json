@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Telegram callback query\nvar raw = $input.first().json;\nvar body = raw.body || raw;\nvar callback = body.callback_query;\n\nif (!callback || !callback.data) return [];\n\nvar action = callback.data;\nvar callbackId = callback.id;\nvar chatId = String(callback.message.chat.id);\nvar msgText = callback.message.caption || '';\n\n// Parse media URL from 📎\nvar mediaUrl = '';\nvar urlParts = msgText.split('📎');\nif (urlParts.length > 1) {\n  mediaUrl = urlParts[1].trim();\n}\n\n// Parse title from 📌\nvar title = '';\nvar titleParts = msgText.split('📌');\nif (titleParts.length > 1) {\n  title = titleParts[1].split('\\n')[0].trim();\n}\n\n// Detect media type from 🎬\nvar mediaType = 'image';\nif (msgText.includes('🎬 video')) {\n  mediaType = 'video';\n}\n\n// Generate Instagram caption (no location in text)\nvar instagramCaption = title + ' 😂🔥\\n\\n#memes #funny #viral #trending #lol #memesdaily #humor #comedy #instamemes #relatable';\n\nvar answerText = action === 'approve' ? '📤 Posting to Instagram...' : '📝 Saving as draft...';\nvar answerBody = JSON.stringify({\n  callback_query_id: callbackId,\n  text: answerText\n});\n\nreturn [{\n  json: {\n    action: action,\n    callbackId: callbackId,\n    chatId: chatId,\n    mediaUrl: mediaUrl,\n    mediaType: mediaType,\n    title: title,\n    instagramCaption: instagramCaption,\n    answerBody: answerBody\n  }\n}];"
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar callback = body.callback_query;\nif (!callback || !callback.data) return [];\n\nvar action = callback.data;\nvar callbackId = callback.id;\nvar chatId = String(callback.message.chat.id);\nvar msgText = callback.message.caption || '';\n\nvar imageUrl = '';\nvar urlParts = msgText.split('📎');\nif (urlParts.length > 1) imageUrl = urlParts[1].trim();\n\nvar title = '';\nvar titleParts = msgText.split('📌');\nif (titleParts.length > 1) title = titleParts[1].split('\\n')[0].trim();\n\n// Skip bad titles: too short, has underscores (subreddit names), or generic\nvar badTitles = ['me_irl', 'meirl', 'memes', 'meme', 'funny', 'lol', 'bruh', 'oc', 'title'];\nvar isGoodTitle = title.length > 10 && !title.includes('_') && badTitles.indexOf(title.toLowerCase()) === -1;\n\n// Fun captions to rotate when title is bad\nvar funCaptions = ['Tag someone who needs to see this 😂', 'This is too accurate 💀😂', 'I cant stop laughing 🤣🔥', 'Who else can relate? 😭😂', 'Bro this is so true 😂💯', 'Send this to your bestie 😂🫡', 'POV: You saw this and lost it 💀', 'This one hits different 😂🎯'];\nvar randomCaption = funCaptions[Math.floor(Math.random() * funCaptions.length)];\n\nvar captionText = isGoodTitle ? title + ' 😂🔥' : randomCaption;\n\nvar instagramCaption = captionText + '\\n.\\n.\\n.\\n#memes #funny #viral #trending #lol #memesdaily #humor #comedy #instamemes #relatable #dailymemes #funnymemes #memepage #explore #explorepage #memeoftheday #laugh #hilarious #jokes #dankmemes #funnyvideos #memesdank #comedymemes #trendingmemes #viralpost';\n\n// Build Cloudinary URL: upscale to 1080px + heliomeme watermark (small, transparent, bottom-right)\nvar processedUrl = 'https://res.cloudinary.com/rd4afqls/image/fetch/c_scale,w_1080,q_auto:best/l_text:Arial_12_bold:heliomeme,co_white,o_25,g_south_east,x_8,y_8/' + imageUrl;\n\nvar answerBody = JSON.stringify({\n  callback_query_id: callbackId,\n  text: action === 'approve' ? '📤 Upscaling & posting to Instagram...' : '📝 Saving as draft...'\n});\n\nreturn [{ json: { action: action, callbackId: callbackId, chatId: chatId, imageUrl: imageUrl, processedUrl: processedUrl, instagramCaption: instagramCaption, answerBody: answerBody } }];"
       },
       "id": "node-parse",
       "name": "Parse Callback",
@@ -29,14 +29,7 @@
         "method": "POST",
         "url": "https://api.telegram.org/bot8711766169:AAGFew0X1RiMRmBpOn-fN9OnsUWCTkkppVk/answerCallbackQuery",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
@@ -51,14 +44,7 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $('Parse Callback').first().json.action }}",
-              "value2": "approve"
-            }
-          ]
-        }
+        "conditions": { "string": [{ "value1": "={{ $('Parse Callback').first().json.action }}", "value2": "approve" }] }
       },
       "id": "node-approved",
       "name": "Is Approved?",
@@ -68,44 +54,14 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $('Parse Callback').first().json.mediaType }}",
-              "value2": "video"
-            }
-          ]
-        }
-      },
-      "id": "node-isvideo",
-      "name": "Is Video?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1180, 180]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "image_url",
-              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
-            },
-            {
-              "name": "caption",
-              "value": "={{ $('Parse Callback').first().json.instagramCaption }}"
-            },
-            {
-              "name": "location_id",
-              "value": "108424279189115"
-            },
-            {
-              "name": "access_token",
-              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
-            }
+            { "name": "image_url", "value": "={{ $('Parse Callback').first().json.processedUrl }}" },
+            { "name": "caption", "value": "={{ $('Parse Callback').first().json.instagramCaption }}" },
+            { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
           ]
         },
         "options": {}
@@ -114,18 +70,15 @@
       "name": "Image Create Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1460, 60]
+      "position": [1200, 180]
     },
     {
-      "parameters": {
-        "amount": 5,
-        "unit": "seconds"
-      },
+      "parameters": { "amount": 5, "unit": "seconds" },
       "id": "node-img-wait",
       "name": "Wait for Image",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
-      "position": [1660, 60]
+      "position": [1400, 180]
     },
     {
       "parameters": {
@@ -134,14 +87,8 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "creation_id",
-              "value": "={{ $json.id }}"
-            },
-            {
-              "name": "access_token",
-              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
-            }
+            { "name": "creation_id", "value": "={{ $json.id }}" },
+            { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
           ]
         },
         "options": {}
@@ -150,7 +97,7 @@
       "name": "Image Publish",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1860, 60]
+      "position": [1600, 180]
     },
     {
       "parameters": {
@@ -159,18 +106,9 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "image_url",
-              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
-            },
-            {
-              "name": "media_type",
-              "value": "STORIES"
-            },
-            {
-              "name": "access_token",
-              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
-            }
+            { "name": "image_url", "value": "={{ $('Parse Callback').first().json.processedUrl }}" },
+            { "name": "media_type", "value": "STORIES" },
+            { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
           ]
         },
         "options": {}
@@ -179,18 +117,15 @@
       "name": "Story Create Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2060, 60]
+      "position": [1800, 180]
     },
     {
-      "parameters": {
-        "amount": 5,
-        "unit": "seconds"
-      },
+      "parameters": { "amount": 5, "unit": "seconds" },
       "id": "node-story-wait",
       "name": "Wait for Story",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
-      "position": [2260, 60]
+      "position": [2000, 180]
     },
     {
       "parameters": {
@@ -199,14 +134,8 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "creation_id",
-              "value": "={{ $json.id }}"
-            },
-            {
-              "name": "access_token",
-              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
-            }
+            { "name": "creation_id", "value": "={{ $json.id }}" },
+            { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
           ]
         },
         "options": {}
@@ -215,80 +144,7 @@
       "name": "Story Publish",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2460, 60]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "media_type",
-              "value": "VIDEO"
-            },
-            {
-              "name": "video_url",
-              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
-            },
-            {
-              "name": "caption",
-              "value": "={{ $('Parse Callback').first().json.instagramCaption }}"
-            },
-            {
-              "name": "location_id",
-              "value": "108424279189115"
-            },
-            {
-              "name": "access_token",
-              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "node-vid-container",
-      "name": "Video Create Container",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1460, 300]
-    },
-    {
-      "parameters": {
-        "amount": 45,
-        "unit": "seconds"
-      },
-      "id": "node-vid-wait",
-      "name": "Wait for Video",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1,
-      "position": [1660, 300]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://graph.facebook.com/v21.0/17841478302119188/media_publish",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "creation_id",
-              "value": "={{ $json.id }}"
-            },
-            {
-              "name": "access_token",
-              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "node-vid-publish",
-      "name": "Video Publish",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1860, 300]
+      "position": [2200, 180]
     },
     {
       "parameters": {
@@ -297,14 +153,8 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "chat_id",
-              "value": "={{ $('Parse Callback').first().json.chatId }}"
-            },
-            {
-              "name": "text",
-              "value": "✅ Meme posted to Instagram (Post + Story) with 📍 India! 🎉🔥"
-            }
+            { "name": "chat_id", "value": "={{ $('Parse Callback').first().json.chatId }}" },
+            { "name": "text", "value": "✅ Meme posted to Instagram (Post + Story)! 🎉🔥\n🔍 Image upscaled to 1080px + heliomeme watermark added" }
           ]
         },
         "options": {}
@@ -313,24 +163,7 @@
       "name": "Confirm Posted",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2660, 180]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $('Parse Callback').first().json.mediaType }}",
-              "value2": "video"
-            }
-          ]
-        }
-      },
-      "id": "node-isdraftvideo",
-      "name": "Is Draft Video?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1180, 500]
+      "position": [2400, 180]
     },
     {
       "parameters": {
@@ -339,22 +172,9 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "image_url",
-              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
-            },
-            {
-              "name": "caption",
-              "value": "={{ $('Parse Callback').first().json.instagramCaption }}"
-            },
-            {
-              "name": "location_id",
-              "value": "108424279189115"
-            },
-            {
-              "name": "access_token",
-              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
-            }
+            { "name": "image_url", "value": "={{ $('Parse Callback').first().json.processedUrl }}" },
+            { "name": "caption", "value": "={{ $('Parse Callback').first().json.instagramCaption }}" },
+            { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
           ]
         },
         "options": {}
@@ -363,44 +183,7 @@
       "name": "Draft Image Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1460, 580]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "media_type",
-              "value": "VIDEO"
-            },
-            {
-              "name": "video_url",
-              "value": "={{ $('Parse Callback').first().json.mediaUrl }}"
-            },
-            {
-              "name": "caption",
-              "value": "={{ $('Parse Callback').first().json.instagramCaption }}"
-            },
-            {
-              "name": "location_id",
-              "value": "108424279189115"
-            },
-            {
-              "name": "access_token",
-              "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "node-draft-vid",
-      "name": "Draft Video Container",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1460, 420]
+      "position": [1200, 460]
     },
     {
       "parameters": {
@@ -409,14 +192,8 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "chat_id",
-              "value": "={{ $('Parse Callback').first().json.chatId }}"
-            },
-            {
-              "name": "text",
-              "value": "📝 Meme saved as draft on Instagram! (Caption + 📍 India location set. Container expires in 24h)"
-            }
+            { "name": "chat_id", "value": "={{ $('Parse Callback').first().json.chatId }}" },
+            { "name": "text", "value": "📝 Meme saved as draft! (Expires in 24h)\n🔍 Image upscaled + watermarked" }
           ]
         },
         "options": {}
@@ -425,74 +202,28 @@
       "name": "Confirm Draft",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1860, 500]
+      "position": [1500, 460]
     }
   ],
   "connections": {
-    "Telegram Callback": {
-      "main": [[{ "node": "Parse Callback", "type": "main", "index": 0 }]]
-    },
-    "Parse Callback": {
-      "main": [[{ "node": "Answer Callback", "type": "main", "index": 0 }]]
-    },
-    "Answer Callback": {
-      "main": [[{ "node": "Is Approved?", "type": "main", "index": 0 }]]
-    },
+    "Telegram Callback": { "main": [[{ "node": "Parse Callback", "type": "main", "index": 0 }]] },
+    "Parse Callback": { "main": [[{ "node": "Answer Callback", "type": "main", "index": 0 }]] },
+    "Answer Callback": { "main": [[{ "node": "Is Approved?", "type": "main", "index": 0 }]] },
     "Is Approved?": {
       "main": [
-        [{ "node": "Is Video?", "type": "main", "index": 0 }],
-        [{ "node": "Is Draft Video?", "type": "main", "index": 0 }]
-      ]
-    },
-    "Is Video?": {
-      "main": [
-        [{ "node": "Video Create Container", "type": "main", "index": 0 }],
-        [{ "node": "Image Create Container", "type": "main", "index": 0 }]
-      ]
-    },
-    "Image Create Container": {
-      "main": [[{ "node": "Wait for Image", "type": "main", "index": 0 }]]
-    },
-    "Wait for Image": {
-      "main": [[{ "node": "Image Publish", "type": "main", "index": 0 }]]
-    },
-    "Image Publish": {
-      "main": [[{ "node": "Story Create Container", "type": "main", "index": 0 }]]
-    },
-    "Story Create Container": {
-      "main": [[{ "node": "Wait for Story", "type": "main", "index": 0 }]]
-    },
-    "Wait for Story": {
-      "main": [[{ "node": "Story Publish", "type": "main", "index": 0 }]]
-    },
-    "Story Publish": {
-      "main": [[{ "node": "Confirm Posted", "type": "main", "index": 0 }]]
-    },
-    "Video Create Container": {
-      "main": [[{ "node": "Wait for Video", "type": "main", "index": 0 }]]
-    },
-    "Wait for Video": {
-      "main": [[{ "node": "Video Publish", "type": "main", "index": 0 }]]
-    },
-    "Video Publish": {
-      "main": [[{ "node": "Confirm Posted", "type": "main", "index": 0 }]]
-    },
-    "Is Draft Video?": {
-      "main": [
-        [{ "node": "Draft Video Container", "type": "main", "index": 0 }],
+        [{ "node": "Image Create Container", "type": "main", "index": 0 }],
         [{ "node": "Draft Image Container", "type": "main", "index": 0 }]
       ]
     },
-    "Draft Video Container": {
-      "main": [[{ "node": "Confirm Draft", "type": "main", "index": 0 }]]
-    },
-    "Draft Image Container": {
-      "main": [[{ "node": "Confirm Draft", "type": "main", "index": 0 }]]
-    }
+    "Image Create Container": { "main": [[{ "node": "Wait for Image", "type": "main", "index": 0 }]] },
+    "Wait for Image": { "main": [[{ "node": "Image Publish", "type": "main", "index": 0 }]] },
+    "Image Publish": { "main": [[{ "node": "Story Create Container", "type": "main", "index": 0 }]] },
+    "Story Create Container": { "main": [[{ "node": "Wait for Story", "type": "main", "index": 0 }]] },
+    "Wait for Story": { "main": [[{ "node": "Story Publish", "type": "main", "index": 0 }]] },
+    "Story Publish": { "main": [[{ "node": "Confirm Posted", "type": "main", "index": 0 }]] },
+    "Draft Image Container": { "main": [[{ "node": "Confirm Draft", "type": "main", "index": 0 }]] }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "staticData": null,
   "tags": [],
   "triggerCount": 0,

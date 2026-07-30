@@ -4,15 +4,10 @@
     {
       "parameters": {
         "rule": {
-          "interval": [
-            {
-              "field": "hours",
-              "hoursInterval": 6
-            }
-          ]
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
         }
       },
-      "id": "f1a1b1c1-1111-4000-8000-000000000001",
+      "id": "node-trigger",
       "name": "Every 6 Hours",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -20,81 +15,109 @@
     },
     {
       "parameters": {
-        "jsCode": "// Fetch memes from 7 subreddits using Reddit JSON API\nvar subs = ['memes', 'indiameme', 'meme', 'funny', 'MadeMeSmile', 'me_irl', 'MemeVideos'];\nvar allPosts = [];\n\nfor (var i = 0; i < subs.length; i++) {\n  try {\n    var res = await this.helpers.httpRequest({\n      method: 'GET',\n      url: 'https://www.reddit.com/r/' + subs[i] + '/hot.json?limit=15',\n      headers: { 'User-Agent': 'n8n-meme-bot/1.0' },\n      json: true\n    });\n    if (res && res.data && res.data.children) {\n      for (var k = 0; k < res.data.children.length; k++) {\n        allPosts.push(res.data.children[k].data);\n      }\n    }\n  } catch(e) {}\n}\n\n// Deduplication\nvar staticData = $getWorkflowStaticData('global');\nif (!staticData.sentUrls) staticData.sentUrls = [];\nif (!staticData.sentTitles) staticData.sentTitles = [];\n\nvar validPosts = [];\nfor (var j = 0; j < allPosts.length; j++) {\n  var post = allPosts[j];\n  if (post.over_18 || post.spoiler || post.stickied || post.is_self) continue;\n\n  var url = post.url || '';\n  var titleLower = (post.title || '').toLowerCase().trim();\n\n  var isImage = url.includes('i.redd.it') && (url.endsWith('.jpg') || url.endsWith('.png') || url.endsWith('.jpeg'));\n  var isVideo = post.is_video && post.media && post.media.reddit_video && post.media.reddit_video.fallback_url;\n\n  if (!isImage && !isVideo) continue;\n\n  var mediaUrl = isVideo ? post.media.reddit_video.fallback_url.split('?')[0] : url;\n\n  if (staticData.sentUrls.includes(mediaUrl) || staticData.sentTitles.includes(titleLower)) continue;\n\n  validPosts.push({\n    title: post.title,\n    subreddit: post.subreddit,\n    ups: post.ups,\n    mediaUrl: mediaUrl,\n    mediaType: isVideo ? 'video' : 'image'\n  });\n}\n\n// Within-batch dedup\nvar seenInBatch = {};\nvar uniquePosts = [];\nfor (var m = 0; m < validPosts.length; m++) {\n  if (!seenInBatch[validPosts[m].mediaUrl]) {\n    seenInBatch[validPosts[m].mediaUrl] = true;\n    uniquePosts.push(validPosts[m]);\n  }\n}\n\nif (uniquePosts.length === 0) return [];\n\nvar output = [];\nvar counter = 1;\nvar botToken = '8711766169:AAGFew0X1RiMRmBpOn-fN9OnsUWCTkkppVk';\n\nfor (var n = 0; n < uniquePosts.length; n++) {\n  var meme = uniquePosts[n];\n  staticData.sentUrls.push(meme.mediaUrl);\n  staticData.sentTitles.push((meme.title || '').toLowerCase().trim());\n\n  var isVid = meme.mediaType === 'video';\n  var endpoint = isVid ? 'sendVideo' : 'sendPhoto';\n  var mediaField = isVid ? 'video' : 'photo';\n\n  var caption = '📸 Meme #' + counter + '\\n\\n' +\n    '📌 ' + meme.title + '\\n' +\n    '📂 r/' + meme.subreddit + '\\n' +\n    '⬆️ ' + meme.ups + ' upvotes\\n' +\n    '🎬 ' + meme.mediaType + '\\n' +\n    '📎' + meme.mediaUrl;\n\n  var body = {\n    chat_id: '6276534589',\n    caption: caption.substring(0, 1024),\n    reply_markup: {\n      inline_keyboard: [\n        [\n          { text: '✅ Approve & Post', callback_data: 'approve' },\n          { text: '📝 Save as Draft', callback_data: 'draft' }\n        ]\n      ]\n    }\n  };\n  body[mediaField] = meme.mediaUrl;\n\n  output.push({\n    json: {\n      telegramUrl: 'https://api.telegram.org/bot' + botToken + '/' + endpoint,\n      body: body\n    }\n  });\n  counter++;\n}\n\nif (staticData.sentUrls.length > 1000) staticData.sentUrls = staticData.sentUrls.slice(-1000);\nif (staticData.sentTitles.length > 1000) staticData.sentTitles = staticData.sentTitles.slice(-1000);\n\nreturn output;"\nvar allPosts = [];\n\nfor (var i = 0; i < subs.length; i++) {\n  try {\n    var res = await this.helpers.httpRequest({\n      method: 'GET',\n      url: 'https://www.reddit.com/r/' + subs[i] + '/hot.json?limit=15',\n      headers: { 'User-Agent': 'n8n-meme-bot/1.0' },\n      json: true\n    });\n    if (res && res.data && res.data.children) {\n      for (var k = 0; k < res.data.children.length; k++) {\n        allPosts.push(res.data.children[k].data);\n      }\n    }\n  } catch(e) {}\n}\n\n// Deduplication\nvar staticData = $getWorkflowStaticData('global');\nif (!staticData.sentUrls) staticData.sentUrls = [];\nif (!staticData.sentTitles) staticData.sentTitles = [];\n\nvar validPosts = [];\nfor (var j = 0; j < allPosts.length; j++) {\n  var post = allPosts[j];\n  if (post.over_18 || post.spoiler || post.stickied || post.is_self) continue;\n\n  var url = post.url || '';\n  var titleLower = (post.title || '').toLowerCase().trim();\n\n  var isImage = url.includes('i.redd.it') && (url.endsWith('.jpg') || url.endsWith('.png') || url.endsWith('.jpeg'));\n  var isVideo = post.is_video && post.media && post.media.reddit_video && post.media.reddit_video.fallback_url;\n\n  if (!isImage && !isVideo) continue;\n\n  var mediaUrl = isVideo ? post.media.reddit_video.fallback_url.split('?')[0] : url;\n\n  if (staticData.sentUrls.includes(mediaUrl) || staticData.sentTitles.includes(titleLower)) continue;\n\n  validPosts.push({\n    title: post.title,\n    subreddit: post.subreddit,\n    ups: post.ups,\n    mediaUrl: mediaUrl,\n    mediaType: isVideo ? 'video' : 'image'\n  });\n}\n\n// Within-batch dedup\nvar seenInBatch = {};\nvar uniquePosts = [];\nfor (var m = 0; m < validPosts.length; m++) {\n  if (!seenInBatch[validPosts[m].mediaUrl]) {\n    seenInBatch[validPosts[m].mediaUrl] = true;\n    uniquePosts.push(validPosts[m]);\n  }\n}\n\nif (uniquePosts.length === 0) return [];\n\nvar output = [];\nvar counter = 1;\nvar botToken = '8711766169:AAGFew0X1RiMRmBpOn-fN9OnsUWCTkkppVk';\n\nfor (var n = 0; n < uniquePosts.length; n++) {\n  var meme = uniquePosts[n];\n  staticData.sentUrls.push(meme.mediaUrl);\n  staticData.sentTitles.push((meme.title || '').toLowerCase().trim());\n\n  var isVid = meme.mediaType === 'video';\n  var endpoint = isVid ? 'sendVideo' : 'sendPhoto';\n  var mediaField = isVid ? 'video' : 'photo';\n\n  var caption = '📸 Meme #' + counter + '\\n\\n' +\n    '📌 ' + meme.title + '\\n' +\n    '📂 r/' + meme.subreddit + '\\n' +\n    '⬆️ ' + meme.ups + ' upvotes\\n' +\n    '🎬 ' + meme.mediaType + '\\n' +\n    '📎' + meme.mediaUrl;\n\n  var body = {\n    chat_id: '6276534589',\n    caption: caption.substring(0, 1024),\n    reply_markup: {\n      inline_keyboard: [\n        [\n          { text: '✅ Approve & Post', callback_data: 'approve' },\n          { text: '❌ Skip', callback_data: 'reject' }\n        ]\n      ]\n    }\n  };\n  body[mediaField] = meme.mediaUrl;\n\n  output.push({\n    json: {\n      telegramUrl: 'https://api.telegram.org/bot' + botToken + '/' + endpoint,\n      body: body\n    }\n  });\n  counter++;\n}\n\nif (staticData.sentUrls.length > 1000) staticData.sentUrls = staticData.sentUrls.slice(-1000);\nif (staticData.sentTitles.length > 1000) staticData.sentTitles = staticData.sentTitles.slice(-1000);\n\nreturn output;"
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1Fs3jQfw5fmRnvzlAarzRlN1cSzLwrbFeyAM020xqtqg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "options": {}
       },
-      "id": "f1a1b1c1-1111-4000-8000-000000000003",
-      "name": "Fetch & Prepare Memes",
+      "id": "node-read-sheet",
+      "name": "Read Sent URLs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [440, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get previously sent URLs from Google Sheet\nvar sheetRows = [];\ntry { sheetRows = $('Read Sent URLs').all(); } catch(e) {}\nvar sentUrls = {};\nfor (var s = 0; s < sheetRows.length; s++) {\n  var u = sheetRows[s].json.url;\n  if (u) sentUrls[u] = true;\n}\n\n// Fetch memes from 7 subreddits\nvar subs = ['memes', 'indiameme', 'meme', 'funny', 'MadeMeSmile', 'me_irl', 'MemeVideos'];\nvar allMemes = [];\nfor (var i = 0; i < subs.length; i++) {\n  try {\n    var res = await this.helpers.httpRequest({ method: 'GET', url: 'https://meme-api.com/gimme/' + subs[i] + '/10', json: true });\n    if (res && res.memes) {\n      for (var k = 0; k < res.memes.length; k++) { allMemes.push(res.memes[k]); }\n    }\n  } catch(e) {}\n}\n\n// Filter: SFW images, not already in sheet, no batch duplicates\nvar output = [];\nvar counter = 1;\nfor (var j = 0; j < allMemes.length; j++) {\n  var post = allMemes[j];\n  var url = post.url || '';\n  if (post.nsfw || post.spoiler) continue;\n  if (!url.includes('i.redd.it')) continue;\n  if (!url.endsWith('.jpg') && !url.endsWith('.png') && !url.endsWith('.jpeg')) continue;\n  if (sentUrls[url]) continue;\n  sentUrls[url] = true;\n\n  var caption = '📸 Meme #' + counter + '\\n\\n📌 ' + post.title + '\\n⬆️ ' + post.ups + ' upvotes\\n📎' + url;\n  output.push({\n    json: {\n      chat_id: '6276534589',\n      photo: url,\n      caption: caption.substring(0, 1024),\n      parse_mode: 'HTML',\n      reply_markup: { inline_keyboard: [[{ text: '✅ Approve & Post', callback_data: 'approve' }, { text: '📝 Save as Draft', callback_data: 'draft' }]] }\n    }\n  });\n  counter++;\n}\n\nreturn output;"
+      },
+      "id": "node-fetch",
+      "name": "Fetch & Filter",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, 300]
+      "position": [660, 300]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.telegramUrl }}",
+        "url": "https://api.telegram.org/bot8711766169:AAGFew0X1RiMRmBpOn-fN9OnsUWCTkkppVk/sendPhoto",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify($json.body) }}",
+        "body": "={{ JSON.stringify($json) }}",
         "options": {}
       },
       "onError": "continueRegularOutput",
-      "id": "f1a1b1c1-1111-4000-8000-000000000006",
+      "id": "node-telegram",
       "name": "Send to Telegram",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [800, 300]
+      "position": [900, 200]
     },
     {
       "parameters": {
-        "content": "## 📋 Meme Preview Pipeline\n\n1. ⏰ Runs every 6 hours\n2. 📥 Fetches from 7 subreddits (memes, indiameme, meme, funny, MadeMeSmile, me_irl, MemeVideos)\n3. 🎬 Supports both images AND videos\n4. 🧹 Filters SFW + deduplicates by URL & title\n5. 📲 Sends ALL memes to Telegram with ✅/❌ buttons\n6. 🎯 You pick which one to post!\n\n**AI caption is generated AFTER you approve a meme**\n(handled by the Approval Handler workflow)",
-        "height": 340,
-        "width": 460,
-        "color": 6
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Fs3jQfw5fmRnvzlAarzRlN1cSzLwrbFeyAM020xqtqg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "url": "={{ $json.photo }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
       },
-      "id": "f1a1b1c1-1111-4000-8000-000000000008",
-      "name": "Sticky Note",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [220, -40]
+      "id": "node-log-sheet",
+      "name": "Log to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [900, 420],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
-    "Every 6 Hours": {
-      "main": [
-        [
-          {
-            "node": "Fetch & Prepare Memes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch & Prepare Memes": {
-      "main": [
-        [
-          {
-            "node": "Send to Telegram",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Every 6 Hours": { "main": [[{ "node": "Read Sent URLs", "type": "main", "index": 0 }]] },
+    "Read Sent URLs": { "main": [[{ "node": "Fetch & Filter", "type": "main", "index": 0 }]] },
+    "Fetch & Filter": {
+      "main": [[
+        { "node": "Send to Telegram", "type": "main", "index": 0 },
+        { "node": "Log to Sheet", "type": "main", "index": 0 }
+      ]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
