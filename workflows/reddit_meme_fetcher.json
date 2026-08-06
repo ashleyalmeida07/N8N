@@ -1,5 +1,5 @@
 {
-  "name": "Reddit Meme Fetcher → Telegram Preview",
+  "name": "Reddit Meme Fetcher \u2192 Telegram Preview",
   "nodes": [
     {
       "parameters": {
@@ -34,14 +34,15 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [440, 300],
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "// Get previously sent URLs from Google Sheet\nvar sheetRows = [];\ntry { sheetRows = $('Read Sent URLs').all(); } catch(e) {}\nvar sentUrls = {};\nfor (var s = 0; s < sheetRows.length; s++) {\n  var u = sheetRows[s].json.url;\n  if (u) sentUrls[u] = true;\n}\n\n// Fetch memes from 7 subreddits\nvar subs = ['memes', 'indiameme', 'meme', 'funny', 'MadeMeSmile', 'me_irl', 'MemeVideos'];\nvar allMemes = [];\nfor (var i = 0; i < subs.length; i++) {\n  try {\n    var res = await this.helpers.httpRequest({ method: 'GET', url: 'https://meme-api.com/gimme/' + subs[i] + '/10', json: true });\n    if (res && res.memes) {\n      for (var k = 0; k < res.memes.length; k++) { allMemes.push(res.memes[k]); }\n    }\n  } catch(e) {}\n}\n\n// Filter: SFW images, not already in sheet, no batch duplicates\nvar output = [];\nvar counter = 1;\nfor (var j = 0; j < allMemes.length; j++) {\n  var post = allMemes[j];\n  var url = post.url || '';\n  if (post.nsfw || post.spoiler) continue;\n  if (!url.includes('i.redd.it')) continue;\n  if (!url.endsWith('.jpg') && !url.endsWith('.png') && !url.endsWith('.jpeg')) continue;\n  if (sentUrls[url]) continue;\n  sentUrls[url] = true;\n\n  var caption = '📸 Meme #' + counter + '\\n\\n📌 ' + post.title + '\\n⬆️ ' + post.ups + ' upvotes\\n📎' + url;\n  output.push({\n    json: {\n      chat_id: '6276534589',\n      photo: url,\n      caption: caption.substring(0, 1024),\n      parse_mode: 'HTML',\n      reply_markup: { inline_keyboard: [[{ text: '✅ Approve & Post', callback_data: 'approve' }, { text: '📝 Save as Draft', callback_data: 'draft' }]] }\n    }\n  });\n  counter++;\n}\n\nreturn output;"
+        "jsCode": "// Load previously sent meme data from Google Sheet for dedup\nvar sheetRows = [];\ntry { sheetRows = $('Read Sent URLs').all(); } catch(e) {}\nvar sent = {};\nfor (var s = 0; s \u003c sheetRows.length; s++) {\n  var row = sheetRows[s].json;\n  if (row.url) sent[row.url.split('?')[0]] = true;\n  if (row.url) { var fn = row.url.split('/').pop(); if (fn) sent['f_' + fn] = true; }\n  if (row.title) sent['t_' + row.title.toLowerCase().trim()] = true;\n  if (row.post_id) sent['p_' + row.post_id] = true;\n}\n\nvar subs = ['memes', 'indiameme', 'meme'];\nvar output = [];\nvar counter = 1;\n\nfor (var i = 0; i \u003c subs.length; i++) {\n  var memes = [];\n  try {\n    var res = await this.helpers.httpRequest({ method: 'GET', url: 'https://meme-api.com/gimme/' + subs[i] + '/10' });\n    if (typeof res === 'string') res = JSON.parse(res);\n    if (res \u0026\u0026 res.memes) memes = res.memes;\n  } catch(e) {}\n\n  for (var j = 0; j \u003c memes.length; j++) {\n    var m = memes[j];\n    var url = (m.url || '').split('?')[0];\n    if (m.nsfw || m.spoiler) continue;\n    if (!url.includes('i.redd.it')) continue;\n    if (!url.endsWith('.jpg') \u0026\u0026 !url.endsWith('.png') \u0026\u0026 !url.endsWith('.jpeg')) continue;\n    // Quad dedup: URL, filename, title, post ID\n    var fname = url.split('/').pop();\n    var titleKey = (m.title || '').toLowerCase().trim();\n    var postId = '';\n    if (m.postLink) { var p = m.postLink.split('/comments/'); if (p.length \u003e 1) postId = p[1].split('/')[0]; }\n    if (sent[url]) continue;\n    if (fname \u0026\u0026 sent['f_' + fname]) continue;\n    if (titleKey.length \u003e 3 \u0026\u0026 sent['t_' + titleKey]) continue;\n    if (postId \u0026\u0026 sent['p_' + postId]) continue;\n    sent[url] = true;\n    if (fname) sent['f_' + fname] = true;\n    if (titleKey.length \u003e 3) sent['t_' + titleKey] = true;\n    if (postId) sent['p_' + postId] = true;\n    var caption = '\ud83d\udcf8 Meme #' + counter + ' (r/' + subs[i] + ')\\\\n\\\\n\ud83d\udccc ' + (m.title || '') + '\\\\n\u2b06\ufe0f ' + (m.ups || 0) + ' upvotes\\\\n\ud83d\udcce' + url;\n    output.push({\n      json: {\n        chat_id: '6276534589',\n        photo: url,\n        title: m.title || '',\n        post_id: postId,\n        caption: caption.substring(0, 1024),\n        parse_mode: 'HTML',\n        reply_markup: { inline_keyboard: [[{ text: '\u2705 Approve \u0026 Post', callback_data: 'approve' }, { text: '\ud83d\udcdd Save as Draft', callback_data: 'draft' }]] }\n      }\n    });\n    counter++;\n  }\n}\n\nreturn output;"
       },
       "id": "node-fetch",
-      "name": "Fetch & Filter",
+      "name": "Fetch \u0026 Filter",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [660, 300]
@@ -82,13 +83,33 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "url": "={{ $json.photo }}"
+            "url": "={{ $json.photo }}",
+            "title": "={{ $json.title }}",
+            "post_id": "={{ $json.post_id }}"
           },
           "matchingColumns": [],
           "schema": [
             {
               "id": "url",
               "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_id",
+              "displayName": "post_id",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -109,8 +130,8 @@
   ],
   "connections": {
     "Every 6 Hours": { "main": [[{ "node": "Read Sent URLs", "type": "main", "index": 0 }]] },
-    "Read Sent URLs": { "main": [[{ "node": "Fetch & Filter", "type": "main", "index": 0 }]] },
-    "Fetch & Filter": {
+    "Read Sent URLs": { "main": [[{ "node": "Fetch \u0026 Filter", "type": "main", "index": 0 }]] },
+    "Fetch \u0026 Filter": {
       "main": [[
         { "node": "Send to Telegram", "type": "main", "index": 0 },
         { "node": "Log to Sheet", "type": "main", "index": 0 }

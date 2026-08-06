@@ -1,5 +1,5 @@
 {
-  "name": "Telegram Approval → Instagram Post",
+  "name": "Telegram Approval \u2192 Instagram Reel",
   "nodes": [
     {
       "parameters": {
@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar callback = body.callback_query;\nif (!callback || !callback.data) return [];\n\nvar action = callback.data;\nvar callbackId = callback.id;\nvar chatId = String(callback.message.chat.id);\nvar msgText = callback.message.caption || '';\n\nvar imageUrl = '';\nvar urlParts = msgText.split('📎');\nif (urlParts.length > 1) imageUrl = urlParts[1].trim();\n\nvar title = '';\nvar titleParts = msgText.split('📌');\nif (titleParts.length > 1) title = titleParts[1].split('\\n')[0].trim();\n\n// Skip bad titles: too short, has underscores (subreddit names), or generic\nvar badTitles = ['me_irl', 'meirl', 'memes', 'meme', 'funny', 'lol', 'bruh', 'oc', 'title'];\nvar isGoodTitle = title.length > 10 && !title.includes('_') && badTitles.indexOf(title.toLowerCase()) === -1;\n\n// Fun captions to rotate when title is bad\nvar funCaptions = ['Tag someone who needs to see this 😂', 'This is too accurate 💀😂', 'I cant stop laughing 🤣🔥', 'Who else can relate? 😭😂', 'Bro this is so true 😂💯', 'Send this to your bestie 😂🫡', 'POV: You saw this and lost it 💀', 'This one hits different 😂🎯'];\nvar randomCaption = funCaptions[Math.floor(Math.random() * funCaptions.length)];\n\nvar captionText = isGoodTitle ? title + ' 😂🔥' : randomCaption;\n\nvar instagramCaption = captionText + '\\n.\\n.\\n.\\n#memes #funny #viral #trending #lol #memesdaily #humor #comedy #instamemes #relatable #dailymemes #funnymemes #memepage #explore #explorepage #memeoftheday #laugh #hilarious #jokes #dankmemes #funnyvideos #memesdank #comedymemes #trendingmemes #viralpost';\n\n// Build Cloudinary URL: upscale to 1080px + heliomeme watermark (small, transparent, bottom-right)\nvar processedUrl = 'https://res.cloudinary.com/rd4afqls/image/fetch/c_scale,w_1080,q_auto:best/l_text:Arial_12_bold:heliomeme,co_white,o_25,g_south_east,x_8,y_8/' + imageUrl;\n\nvar answerBody = JSON.stringify({\n  callback_query_id: callbackId,\n  text: action === 'approve' ? '📤 Upscaling & posting to Instagram...' : '📝 Saving as draft...'\n});\n\nreturn [{ json: { action: action, callbackId: callbackId, chatId: chatId, imageUrl: imageUrl, processedUrl: processedUrl, instagramCaption: instagramCaption, answerBody: answerBody } }];"
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar callback = body.callback_query;\nif (!callback || !callback.data) return [];\n\nvar action = callback.data;\nvar callbackId = callback.id;\nvar chatId = String(callback.message.chat.id);\nvar msgText = callback.message.caption || '';\n\n// Extract image URL: everything after \ud83d\udcce, trimmed\nvar imageUrl = '';\nvar urlParts = msgText.split('\ud83d\udcce');\nif (urlParts.length > 1) imageUrl = urlParts[1].trim().split(/\\s/)[0];\n\n// Extract title: text between \ud83d\udccc and \u2b06\ufe0f (upvotes marker)\nvar title = '';\nvar titleStart = msgText.indexOf('\ud83d\udccc');\nvar titleEnd = msgText.indexOf('\u2b06\ufe0f');\nif (titleStart !== -1) {\n  var titleBlock = titleEnd !== -1 ? msgText.substring(titleStart + 2, titleEnd) : msgText.substring(titleStart + 2);\n  title = titleBlock.trim();\n}\n\n// Skip bad titles: too short, has underscores (subreddit names), or generic\nvar badTitles = ['me_irl', 'meirl', 'memes', 'meme', 'funny', 'lol', 'bruh', 'oc', 'title'];\nvar isGoodTitle = title.length > 10 && !title.includes('_') && badTitles.indexOf(title.toLowerCase()) === -1;\n\n// Fun captions to rotate when title is bad\nvar funCaptions = ['Tag someone who needs to see this \ud83d\ude02', 'This is too accurate \ud83d\udc80\ud83d\ude02', 'I cant stop laughing \ud83e\udd23\ud83d\udd25', 'Who else can relate? \ud83d\ude2d\ud83d\ude02', 'Bro this is so true \ud83d\ude02\ud83d\udcaf', 'Send this to your bestie \ud83d\ude02\ud83e\udee1', 'POV: You saw this and lost it \ud83d\udc80', 'This one hits different \ud83d\ude02\ud83c\udfaf'];\nvar randomCaption = funCaptions[Math.floor(Math.random() * funCaptions.length)];\n\nvar captionText = isGoodTitle ? title + ' \ud83d\ude02\ud83d\udd25' : randomCaption;\n\nvar instagramCaption = captionText + '\\n.\\n.\\n.\\n#memes #funny #viral #trending #lol #memesdaily #humor #comedy #instamemes #relatable #dailymemes #funnymemes #memepage #explore #explorepage #memeoftheday #laugh #hilarious #jokes #dankmemes #funnyvideos #memesdank #comedymemes #trendingmemes #viralpost #reels #reelsinstagram #fyp';\n\n// Build Cloudinary URL: upscale to 1080px + heliomeme watermark\nvar processedUrl = 'https://res.cloudinary.com/rd4afqls/image/fetch/c_scale,w_1080,q_auto:best/l_text:Arial_12_bold:heliomeme,co_white,o_25,g_south_east,x_8,y_8/' + imageUrl;\n\nvar answerBody = JSON.stringify({\n  callback_query_id: callbackId,\n  text: action === 'approve' ? '\ud83d\udce4 Posting as Reel to Instagram...' : '\ud83d\udcdd Saving as draft...'\n});\n\nreturn [{ json: { action: action, callbackId: callbackId, chatId: chatId, imageUrl: imageUrl, processedUrl: processedUrl, instagramCaption: instagramCaption, answerBody: answerBody } }];"
       },
       "id": "node-parse",
       "name": "Parse Callback",
@@ -61,21 +61,22 @@
           "parameters": [
             { "name": "image_url", "value": "={{ $('Parse Callback').first().json.processedUrl }}" },
             { "name": "caption", "value": "={{ $('Parse Callback').first().json.instagramCaption }}" },
+            { "name": "media_type", "value": "REELS" },
             { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
           ]
         },
         "options": {}
       },
-      "id": "node-img-container",
-      "name": "Image Create Container",
+      "id": "node-reel-container",
+      "name": "Reel Create Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1200, 180]
     },
     {
-      "parameters": { "amount": 5, "unit": "seconds" },
-      "id": "node-img-wait",
-      "name": "Wait for Image",
+      "parameters": { "amount": 15, "unit": "seconds" },
+      "id": "node-reel-wait",
+      "name": "Wait for Reel",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [1400, 180]
@@ -93,58 +94,11 @@
         },
         "options": {}
       },
-      "id": "node-img-publish",
-      "name": "Image Publish",
+      "id": "node-reel-publish",
+      "name": "Reel Publish",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1600, 180]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            { "name": "image_url", "value": "={{ $('Parse Callback').first().json.processedUrl }}" },
-            { "name": "media_type", "value": "STORIES" },
-            { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
-          ]
-        },
-        "options": {}
-      },
-      "id": "node-story-container",
-      "name": "Story Create Container",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1800, 180]
-    },
-    {
-      "parameters": { "amount": 5, "unit": "seconds" },
-      "id": "node-story-wait",
-      "name": "Wait for Story",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1,
-      "position": [2000, 180]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://graph.facebook.com/v21.0/17841478302119188/media_publish",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            { "name": "creation_id", "value": "={{ $json.id }}" },
-            { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
-          ]
-        },
-        "options": {}
-      },
-      "id": "node-story-publish",
-      "name": "Story Publish",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2200, 180]
     },
     {
       "parameters": {
@@ -154,7 +108,7 @@
         "bodyParameters": {
           "parameters": [
             { "name": "chat_id", "value": "={{ $('Parse Callback').first().json.chatId }}" },
-            { "name": "text", "value": "✅ Meme posted to Instagram (Post + Story)! 🎉🔥\n🔍 Image upscaled to 1080px + heliomeme watermark added" }
+            { "name": "text", "value": "\u2705 Meme posted as Instagram Reel! \ud83c\udf89\ud83d\udd25\n\ud83d\udd0d Image upscaled to 1080px + heliomeme watermark added" }
           ]
         },
         "options": {}
@@ -163,27 +117,46 @@
       "name": "Confirm Posted",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2400, 180]
+      "position": [1800, 180]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://graph.facebook.com/v21.0/17841478302119188/media",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            { "name": "image_url", "value": "={{ $('Parse Callback').first().json.processedUrl }}" },
-            { "name": "caption", "value": "={{ $('Parse Callback').first().json.instagramCaption }}" },
-            { "name": "access_token", "value": "EAATmW71oVbgBSIuJpWVBZCw5RDexkZAzaZC9xHZAwmDfCO3ZBXq4kXTOMGApTwkYyblZBCY8c1MsqEYS8GWcEN7ufKXIQFN3zPW5kkA8XprripziyvHi7ot2zwa9Vm9Q8PzZAXoV58OydF5KkhE3CbJ0uTl45ZAbm0m4fSm2Ud0ZA9QwRUbVoBZB13A58M0sp9" }
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Fs3jQfw5fmRnvzlAarzRlN1cSzLwrbFeyAM020xqtqg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Drafts",
+          "mode": "list",
+          "cachedResultName": "Drafts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "url": "={{ $('Parse Callback').first().json.imageUrl }}",
+            "caption": "={{ $('Parse Callback').first().json.instagramCaption }}",
+            "processed_url": "={{ $('Parse Callback').first().json.processedUrl }}",
+            "saved_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "url", "displayName": "url", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "caption", "displayName": "caption", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "processed_url", "displayName": "processed_url", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "saved_at", "displayName": "saved_at", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
           ]
         },
         "options": {}
       },
-      "id": "node-draft-img",
-      "name": "Draft Image Container",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1200, 460]
+      "id": "node-draft-sheet",
+      "name": "Save Draft to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1200, 460],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -193,7 +166,7 @@
         "bodyParameters": {
           "parameters": [
             { "name": "chat_id", "value": "={{ $('Parse Callback').first().json.chatId }}" },
-            { "name": "text", "value": "📝 Meme saved as draft! (Expires in 24h)\n🔍 Image upscaled + watermarked" }
+            { "name": "text", "value": "\ud83d\udcdd Meme saved as draft in Google Sheets!\n\ud83d\udccb Check the Drafts tab to review and post later" }
           ]
         },
         "options": {}
@@ -211,17 +184,14 @@
     "Answer Callback": { "main": [[{ "node": "Is Approved?", "type": "main", "index": 0 }]] },
     "Is Approved?": {
       "main": [
-        [{ "node": "Image Create Container", "type": "main", "index": 0 }],
-        [{ "node": "Draft Image Container", "type": "main", "index": 0 }]
+        [{ "node": "Reel Create Container", "type": "main", "index": 0 }],
+        [{ "node": "Save Draft to Sheet", "type": "main", "index": 0 }]
       ]
     },
-    "Image Create Container": { "main": [[{ "node": "Wait for Image", "type": "main", "index": 0 }]] },
-    "Wait for Image": { "main": [[{ "node": "Image Publish", "type": "main", "index": 0 }]] },
-    "Image Publish": { "main": [[{ "node": "Story Create Container", "type": "main", "index": 0 }]] },
-    "Story Create Container": { "main": [[{ "node": "Wait for Story", "type": "main", "index": 0 }]] },
-    "Wait for Story": { "main": [[{ "node": "Story Publish", "type": "main", "index": 0 }]] },
-    "Story Publish": { "main": [[{ "node": "Confirm Posted", "type": "main", "index": 0 }]] },
-    "Draft Image Container": { "main": [[{ "node": "Confirm Draft", "type": "main", "index": 0 }]] }
+    "Reel Create Container": { "main": [[{ "node": "Wait for Reel", "type": "main", "index": 0 }]] },
+    "Wait for Reel": { "main": [[{ "node": "Reel Publish", "type": "main", "index": 0 }]] },
+    "Reel Publish": { "main": [[{ "node": "Confirm Posted", "type": "main", "index": 0 }]] },
+    "Save Draft to Sheet": { "main": [[{ "node": "Confirm Draft", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "staticData": null,
