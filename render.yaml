@@ -15,7 +15,7 @@ services:
         value: Asia/Kolkata
       - key: N8N_SECURE_COOKIE
         value: false
-    disk:
-      name: n8n-data
-      mountPath: /home/node/.n8n
-      sizeGB: 1
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=400
+      - key: N8N_ENCRYPTION_KEY
+        value: 5220a0f1104c53ddd34d7c4ca6e4aa62
