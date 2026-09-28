@@ -4,6 +4,10 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
+    disk:
+      name: n8n-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: N8N_HOST
         value: 0.0.0.0
@@ -19,6 +23,8 @@ services:
         value: --max-old-space-size=400
       - key: N8N_ENCRYPTION_KEY
         value: 5220a0f1104c53ddd34d7c4ca6e4aa62
+      - key: N8N_USER_MANAGEMENT_JWT_SECRET
+        value: 2ff454fe5e01548c3620d8d8eb97c24ed99264dbe3d597f87c61e17d24954aad
       - key: WEBHOOK_URL
         value: https://n8n-f2n3.onrender.com/
       - key: N8N_EDITOR_BASE_URL
