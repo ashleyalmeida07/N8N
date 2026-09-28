@@ -19,3 +19,7 @@ services:
         value: --max-old-space-size=400
       - key: N8N_ENCRYPTION_KEY
         value: 5220a0f1104c53ddd34d7c4ca6e4aa62
+      - key: WEBHOOK_URL
+        value: https://n8n-f2n3.onrender.com/
+      - key: N8N_EDITOR_BASE_URL
+        value: https://n8n-f2n3.onrender.com/
